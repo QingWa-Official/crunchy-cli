@@ -282,9 +282,12 @@ async fn crunchyroll_session(
     rate_limiter: Option<RateLimiterService>,
 ) -> Result<Crunchyroll> {
     let supported_langs = vec![
+        Locale::zh_CN,
+        Locale::zh_HK,
+        Locale::zh_TW,
+        Locale::en_US,
         Locale::ar_ME,
         Locale::de_DE,
-        Locale::en_US,
         Locale::es_ES,
         Locale::es_419,
         Locale::fr_FR,

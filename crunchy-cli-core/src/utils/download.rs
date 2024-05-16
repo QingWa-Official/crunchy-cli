@@ -385,45 +385,7 @@ impl Downloader {
             }
         }
 
-        // add audio metadata
-        for raw_audio in raw_audios {
-            audios.push(FFmpegAudioMeta {
-                path: raw_audio.path,
-                locale: raw_audio.locale,
-                start_time: audio_offsets.get(&raw_audio.format_id).copied(),
-                video_idx: raw_audio.video_idx,
-            })
-        }
-
-        // downloads all videos
-        for (i, format) in self.formats.iter().enumerate() {
-            let path = self
-                .download_video(
-                    &format.video.0,
-                    format!("{:<1$}", format!("Downloading video #{}", i + 1), fmt_space),
-                    None,
-                )
-                .await?;
-
-            let (len, fps) = get_video_stats(&path)?;
-            if max_len < len {
-                max_len = len
-            }
-            let frames = ((len.num_milliseconds() as f64
-                - video_offset.unwrap_or_default().num_milliseconds() as f64)
-                / 1000.0
-                * fps) as u64;
-            if max_frames < frames {
-                max_frames = frames
-            }
-
-            videos.push(FFmpegVideoMeta {
-                path,
-                length: len,
-                start_time: video_offset,
-            })
-        }
-
+        
         for (i, format) in self.formats.iter().enumerate() {
             if format.subtitles.is_empty() {
                 continue;
@@ -470,7 +432,7 @@ impl Downloader {
                 }
 
                 let path = self
-                    .download_subtitle(subtitle.clone(), videos[i.min(videos.len() - 1)].length)
+                    .download_subtitle(subtitle.clone()) //, videos[i.min(videos.len() - 1)].length)
                     .await?;
                 debug!(
                     "Downloaded {} subtitles{}",
@@ -485,6 +447,45 @@ impl Downloader {
                     video_idx: i,
                 })
             }
+        }
+
+        // add audio metadata
+        for raw_audio in raw_audios {
+            audios.push(FFmpegAudioMeta {
+                path: raw_audio.path,
+                locale: raw_audio.locale,
+                start_time: audio_offsets.get(&raw_audio.format_id).copied(),
+                video_idx: raw_audio.video_idx,
+            })
+        }
+
+        // downloads all videos
+        for (i, format) in self.formats.iter().enumerate() {
+            let path = self
+                .download_video(
+                    &format.video.0,
+                    format!("{:<1$}", format!("Downloading video #{}", i + 1), fmt_space),
+                    None,
+                )
+                .await?;
+
+            let (len, fps) = get_video_stats(&path)?;
+            if max_len < len {
+                max_len = len
+            }
+            let frames = ((len.num_milliseconds() as f64
+                - video_offset.unwrap_or_default().num_milliseconds() as f64)
+                / 1000.0
+                * fps) as u64;
+            if max_frames < frames {
+                max_frames = frames
+            }
+
+            videos.push(FFmpegVideoMeta {
+                path,
+                length: len,
+                start_time: video_offset,
+            })
         }
 
         for format in self.formats.iter() {
@@ -927,7 +928,7 @@ impl Downloader {
     async fn download_subtitle(
         &self,
         subtitle: Subtitle,
-        max_length: TimeDelta,
+        // max_length: TimeDelta,
     ) -> Result<TempPath> {
         let buf = subtitle.data().await?;
         let mut ass = match subtitle.format.as_str() {
@@ -943,20 +944,20 @@ impl Downloader {
         // length. this might also result in issues with video players, thus the times are stripped
         // to be at most as long as `max_length`
         // (https://github.com/crunchy-labs/crunchy-cli/issues/32)
-        for i in (0..ass.events.len()).rev() {
-            let max_len = Time::from_hms(0, 0, 0)
-                .unwrap()
-                .add(Duration::from_millis(max_length.num_milliseconds() as u64));
+        // for i in (0..ass.events.len()).rev() {
+        //     let max_len = Time::from_hms(0, 0, 0)
+        //         .unwrap()
+        //         .add(Duration::from_millis(max_length.num_milliseconds() as u64));
 
-            if ass.events[i].start > max_len {
-                if ass.events[i].end > max_len {
-                    ass.events[i].start = max_len
-                }
-                ass.events[i].end = max_len
-            } else {
-                break;
-            }
-        }
+        //     if ass.events[i].start > max_len {
+        //         if ass.events[i].end > max_len {
+        //             ass.events[i].start = max_len
+        //         }
+        //         ass.events[i].end = max_len
+        //     } else {
+        //         break;
+        //     }
+        // }
 
         // without this additional info, subtitle look very messy in some video player
         // (https://github.com/crunchy-labs/crunchy-cli/issues/66)
