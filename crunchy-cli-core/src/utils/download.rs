@@ -449,7 +449,6 @@ impl Downloader {
             }
         }
 
-
         // add audio metadata
         for raw_audio in raw_audios {
             audios.push(FFmpegAudioMeta {
